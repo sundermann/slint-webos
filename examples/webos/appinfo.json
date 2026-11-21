@@ -1,0 +1,12 @@
+{
+  "id": "org.slint.webos.counter",
+  "version": "0.1.0",
+  "type": "native",
+  "main": "app",
+  "title": "Slint Counter",
+  "vendor": "slint-webos contributors",
+  "icon": "icon.png",
+  "nativeLifeCycleInterfaceVersion": 2,
+  "handlesRelaunch": true,
+  "requiredMemory": 64
+}

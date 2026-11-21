@@ -1,0 +1,6 @@
+/target/
+/build/
+/dist/
+/tools/sdl-webos/
+/.DS_Store
+__pycache__/

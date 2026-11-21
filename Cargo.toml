@@ -1,0 +1,54 @@
+[package]
+name = "slint-webos"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98.1"
+description = "Native Slint platform for LG webOS TV using SDL-webOS and OpenGL ES"
+repository = "https://github.com/sundermann/slint-webos"
+license = "MIT"
+readme = "README.md"
+categories = ["gui", "development-tools"]
+keywords = ["slint", "webos", "sdl2"]
+include = [
+    "/docs/readme-banner.webp",
+    "/src",
+    "/examples",
+    "/tests",
+    "/tools/*.py",
+    "/tools/*.sh",
+    "/tools/*.patch",
+    "/tools/licenses",
+    "/tools/sdl-webos/lib/libSDL2.a",
+    "/tools/sdl-webos/include/SDL2/SDL_config.h",
+    "/build.rs",
+    "/Dockerfile",
+    "/README.md",
+    "/LICENSE",
+    "/Cargo.lock",
+]
+
+[dependencies]
+# Slint requires its matching i-slint-core release, so Cargo updates them together.
+i-slint-core = { version = "1.19", default-features = false }
+log = "0.4"
+sdl2 = "0.38.1"
+slint = { version = "1.19", default-features = false, features = ["std", "compat-1-2", "renderer-femtovg"] }
+
+# Load the firmware Fontconfig when available. Embedded fonts also work without it.
+[target.'cfg(target_os = "linux")'.dependencies]
+fontique = { version = "0.12", default-features = false, features = ["fontconfig-dlopen"] }
+
+[target.'cfg(any(target_os = "linux", target_os = "macos"))'.dependencies]
+libc = "0.2"
+
+[lints.rust]
+missing_docs = "warn"
+unsafe_op_in_unsafe_fn = "deny"
+
+[profile.release]
+lto = "thin"
+strip = "debuginfo"
+
+[[test]]
+name = "backend"
+harness = false

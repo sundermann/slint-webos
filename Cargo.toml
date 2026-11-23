@@ -16,7 +16,6 @@ include = [
     "/tests",
     "/tools/*.py",
     "/tools/*.sh",
-    "/tools/*.patch",
     "/tools/licenses",
     "/tools/sdl-webos/lib/libSDL2.a",
     "/tools/sdl-webos/include/SDL2/SDL_config.h",

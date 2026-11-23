@@ -57,7 +57,7 @@ export CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABI_LINKER="$WEBOS_SDK/bin/arm-webos
 cargo build --release --target armv7-unknown-linux-gnueabi --bin my-tv-app
 ```
 
-The crates.io package ships a patched ARM SDL-webOS archive. Cargo links it statically
+The crates.io package ships an ARM SDL-webOS archive. Cargo links it statically
 along with the SDK's glibc polyfills. The SDK also supplies the cross-linker and sysroot.
 
 The crate also includes a `Dockerfile` that sets up the SDK and Rust target on amd64 and arm64.
@@ -65,16 +65,17 @@ With that image, run the same Cargo build command from your mounted application 
 
 ### Source checkouts and custom SDL builds
 
-A source checkout builds the pinned SDL-webOS revision with CMake, pkg-config, patch,
-gawk, curl, and standard Linux build utilities. On the first build it fetches the
-archive from GitHub, verifies its SHA-256 checksum, and applies the relaunch patch. Set
-`SLINT_WEBOS_BUILD_DIR` to share a writable SDL build cache across builds. With
-`CARGO_NET_OFFLINE=true`, the source build reports a cache miss without contacting GitHub.
+A source checkout builds the pinned SDL-webOS revision with CMake, pkg-config, gawk,
+curl, and standard Linux build utilities. On the first build it fetches the archive
+from GitHub and verifies its SHA-256 checksum. The pinned revision includes the
+upstream relaunch fix. Set `SLINT_WEBOS_BUILD_DIR` to share a writable SDL build cache
+across builds. With `CARGO_NET_OFFLINE=true`, the source build reports a cache miss
+without contacting GitHub.
 
 Set `SDL_WEBOS_PREFIX` to use an equivalent prebuilt static-only SDL-webOS installation
 from an absolute path. The prefix must contain
 `lib/libSDL2.a` and `include/SDL2/SDL_config.h` with the Wayland webOS extension enabled.
-Apply the relaunch patch when building that archive if your app handles relaunch events.
+Use an SDL-webOS revision that includes the relaunch fix if your app handles relaunch events.
 
 ## Package and install
 
@@ -135,7 +136,7 @@ From a source checkout with desktop SDL2 installed, run `cargo run --example cou
 notices and accepts your application's dependency and asset notices via `--notice`.
 
 [sdk]: https://github.com/openlgtv/buildroot-nc4/releases/latest
-[sdl]: https://github.com/webosbrew/SDL-webOS/tree/8f8da641e197c97a48c46c065e9a69941657bc29
+[sdl]: https://github.com/webosbrew/SDL-webOS/tree/c7bf0a722739ac734a97f66105f0fbf1cc56443c
 [cargo-metadata]: https://doc.rust-lang.org/cargo/commands/cargo-metadata.html
 [cli]: https://webostv.developer.lge.com/develop/tools/cli-dev-guide
 [slint-license]: https://slint.dev/pricing

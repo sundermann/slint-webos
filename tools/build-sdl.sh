@@ -2,15 +2,12 @@
 set -euo pipefail
 sdk=$1
 build_dir=$2
-tools_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-patch_file="$tools_dir/sdl-webos-relaunch.patch"
-patch_key=$(sha256sum <"$patch_file")
-revision=8f8da641e197c97a48c46c065e9a69941657bc29
-checksum=407e8d00149df13753cc8b86639db527d569ef15c6dabc5b39f49d5b28579a7a
-source_dir="$build_dir/SDL-webOS-$revision-${patch_key:0:12}"
+revision=c7bf0a722739ac734a97f66105f0fbf1cc56443c
+checksum=c2860318ab5a6cf7d0676c3d8f14ba99da19b01b4f5c14ab6d95b1b3612342e4
+source_dir="$build_dir/SDL-webOS-$revision"
 # CMake records absolute paths to the relocated SDK and to the source tree.
 sdk_key=$(printf '%s' "$sdk" | sha256sum)
-variant="$build_dir/sdl-$revision-${patch_key:0:12}-${sdk_key:0:12}"
+variant="$build_dir/sdl-$revision-${sdk_key:0:12}"
 prefix="$variant/install"
 
 # Keep stdout available for the resulting prefix and serialize use of the cache.
@@ -33,7 +30,6 @@ if [[ ! -f "$source_dir/CMakeLists.txt" ]]; then
     printf '%s  %s\n' "$checksum" "$archive" | sha256sum --check
     mkdir "$staging/source"
     tar -xzf "$archive" -C "$staging/source" --strip-components=1
-    patch --batch -d "$staging/source" -p1 <"$patch_file"
     mv -T "$staging/source" "$source_dir"
 fi
 

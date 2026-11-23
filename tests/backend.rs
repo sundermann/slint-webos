@@ -1,6 +1,8 @@
-//! Exercise the production backend under a real SDL OpenGL window.
+//! Exercise SDL initialization and the production OpenGL backend.
 use std::cell::Cell;
 use std::error::Error;
+use std::num::NonZeroU32;
+use std::process::Command;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
@@ -9,7 +11,11 @@ use sdl2::keyboard::{Keycode, Mod};
 use sdl2::mouse::{MouseButton, MouseState};
 use sdl2::sys;
 use slint::{ComponentHandle, GraphicsAPI, PhysicalSize, RenderingState, Timer};
-use slint_webos::Settings;
+use slint_webos::hints::{BluetoothDeviceId, Hint, WindowClass, WindowType};
+use slint_webos::{Settings, hints};
+
+const TEST_HINT: &str = "SDL_SLINT_WEBOS_TEST_HINT";
+const TEST_ENV_HINT: &str = "SDL_SLINT_WEBOS_TEST_ENV_HINT";
 
 mod ui {
     #![allow(missing_docs)] // Slint generates public accessors.
@@ -49,7 +55,28 @@ mod ui {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    if std::env::args_os()
+        .nth(1)
+        .is_some_and(|arg| arg == "--check-hints")
+    {
+        return check_initialization_hints();
+    }
     if std::env::var_os("SLINT_WEBOS_GPU_TEST").is_none() {
+        if !cfg!(all(target_os = "linux", target_arch = "arm")) {
+            let status = Command::new(std::env::current_exe()?)
+                .arg("--check-hints")
+                .env_remove("SDL_VIDEODRIVER")
+                .env_remove("SDL_WEBOS_WINDOW_TYPE")
+                .env_remove(hints::WEBOS_ACCESS_POLICY_KEYS_BACK)
+                .env_remove(hints::WEBOS_CURSOR_SLEEP_TIME)
+                .env_remove(hints::WEBOS_CURSOR_FREQUENCY)
+                .env_remove(hints::WEBOS_WINDOW_CLASS)
+                .env_remove(hints::WEBOS_HIDAPI_IGNORE_BLUETOOTH_DEVICES)
+                .env_remove(TEST_HINT)
+                .env(TEST_ENV_HINT, "environment")
+                .status()?;
+            assert!(status.success(), "SDL initialization hints check failed");
+        }
         return Ok(());
     }
     slint_webos::init_with_settings(Settings {
@@ -190,6 +217,87 @@ fn main() -> Result<(), Box<dyn Error>> {
     drop(app);
     ui::Probe::new()?;
     eprintln!("SDL GPU, idle wake, animation, input, IME, resize and close passed");
+    Ok(())
+}
+
+fn check_initialization_hints() -> Result<(), Box<dyn Error>> {
+    use slint_webos::init_with_settings_and_hints as init;
+
+    let custom = |name, value| Hint::Custom { name, value };
+    for invalid in [
+        custom("invalid\0name", "value"),
+        custom(TEST_HINT, "invalid\0value"),
+        Hint::CursorSleepTime(Duration::from_micros(1)),
+        Hint::CursorSleepTime(Duration::from_millis(i32::MAX as u64 + 1)),
+        Hint::CursorFrequency(NonZeroU32::MAX),
+    ] {
+        let error = init(Settings::default(), &[custom(TEST_HINT, "first"), invalid])
+            .expect_err("invalid hints must fail validation");
+        assert!(error.to_string().contains("SDL hint"), "{error}");
+        assert_eq!(
+            sdl2::hint::get(TEST_HINT),
+            None,
+            "validate every hint before applying any"
+        );
+    }
+
+    let error = init(
+        Settings::default(),
+        &[custom("SDL_VIDEODRIVER", "slint-webos-test-unknown-driver")],
+    )
+    .expect_err("SDL must read the driver hint during initialization");
+    assert!(
+        error.to_string().contains("initializing SDL video"),
+        "{error}"
+    );
+
+    let custom_class = "  firmware class β  ";
+    init(
+        Settings::default(),
+        &[
+            custom("SDL_VIDEODRIVER", "dummy"),
+            Hint::WindowType(WindowType::Overlay),
+            Hint::WindowClass(WindowClass::Hidden),
+            custom(hints::WEBOS_WINDOW_CLASS, custom_class),
+            Hint::AccessPolicyKeysBack(false),
+            Hint::CursorSleepTime(Duration::from_secs(5)),
+            Hint::CursorFrequency(NonZeroU32::new(60).expect("positive test rate")),
+            Hint::HidapiIgnoreBluetoothDevices(&[
+                BluetoothDeviceId {
+                    vendor_id: 0x1234,
+                    product_id: 0,
+                },
+                BluetoothDeviceId {
+                    vendor_id: 0x37,
+                    product_id: 0xabcd,
+                },
+            ]),
+            custom(TEST_HINT, "first"),
+            custom(TEST_HINT, "selected"),
+            custom(TEST_ENV_HINT, "configured"),
+        ],
+    )?;
+    let video = sdl2::init()?.video()?;
+    assert_eq!(video.current_video_driver(), "dummy");
+    for (name, expected) in [
+        ("SDL_WEBOS_WINDOW_TYPE", "_WEBOS_WINDOW_TYPE_OVERLAY"),
+        ("SDL_WEBOS_WINDOW_CLASS", custom_class),
+        ("SDL_WEBOS_ACCESS_POLICY_KEYS_BACK", "false"),
+        ("SDL_WEBOS_CURSOR_SLEEP_TIME", "5000"),
+        ("SDL_WEBOS_CURSOR_FREQUENCY", "60"),
+        (
+            "SDL_WEBOS_HIDAPI_IGNORE_BLUETOOTH_DEVICES",
+            "0x1234/0x0000,0x0037/0xabcd",
+        ),
+        (TEST_HINT, "selected"),
+        (TEST_ENV_HINT, "environment"),
+    ] {
+        assert_eq!(sdl2::hint::get(name).as_deref(), Some(expected), "{name}");
+    }
+
+    init(Settings::default(), &[custom(TEST_HINT, "second attempt")])
+        .expect_err("Slint can only be installed once");
+    assert_eq!(sdl2::hint::get(TEST_HINT).as_deref(), Some("selected"));
     Ok(())
 }
 

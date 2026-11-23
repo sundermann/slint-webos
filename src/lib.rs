@@ -22,6 +22,7 @@
 //! Disable default features and enable `std` and `compat-1-2`. Slint's code
 //! generator resolves types through the application's Slint dependency.
 
+pub mod hints;
 mod input;
 mod platform;
 mod surface;
@@ -109,6 +110,50 @@ pub fn init() -> Result<(), PlatformError> {
 ///
 /// Returns an error for invalid settings or if platform installation fails.
 pub fn init_with_settings(settings: Settings) -> Result<(), PlatformError> {
+    init_with_settings_and_hints(settings, &[])
+}
+
+/// Install the SDL platform on the main thread with window settings and SDL hints.
+///
+/// Use typed [`hints::Hint`] variants for SDL-webOS settings and
+/// [`hints::Hint::Custom`] to pass raw strings for any SDL hint. Hints are
+/// process-wide and applied in order before SDL initialization.
+/// They replace the backend's defaults at SDL's normal priority. Environment
+/// variables and existing override-priority hints take precedence. The webOS
+/// backend requires the Wayland video driver.
+///
+/// # Examples
+///
+/// ```no_run
+/// use slint_webos::hints::{Hint, WindowType};
+/// use slint_webos::{Settings, init_with_settings_and_hints};
+///
+/// # fn main() -> Result<(), slint::PlatformError> {
+/// init_with_settings_and_hints(
+///     Settings::default(),
+///     &[
+///         Hint::WindowType(WindowType::Overlay),
+///         Hint::Custom { name: "SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS", value: "0" },
+///     ],
+/// )?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// # Errors
+///
+/// Returns an error for invalid settings, an unrepresentable cursor timeout or
+/// update rate, a NUL byte in a custom hint name or value, or a platform
+/// installation failure.
+pub fn init_with_settings_and_hints(
+    settings: Settings,
+    hints: &[hints::Hint<'_>],
+) -> Result<(), PlatformError> {
     settings.validate()?;
-    platform::install(settings)
+    let encoded = hints
+        .iter()
+        .copied()
+        .map(hints::Hint::encode)
+        .collect::<Result<Vec<_>, _>>()?;
+    platform::install(settings, &encoded)
 }

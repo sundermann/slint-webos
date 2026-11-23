@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
 use std::mem::MaybeUninit;
@@ -10,22 +11,33 @@ use sdl2::{EventPump, EventSubsystem, Sdl, VideoSubsystem, sys};
 use slint::platform::{self, Clipboard, EventLoopProxy, Platform, WindowAdapter};
 use slint::{EventLoopError, PlatformError};
 
-use crate::Settings;
 use crate::window::AppWindow;
+use crate::{Settings, hints};
 
 const BATCH_SIZE: usize = 64;
 // Video drivers may accept the vsync request and still return immediately.
 const FRAME_INTERVAL: Duration = Duration::from_nanos(16_666_667);
 
-pub(crate) fn install(settings: Settings) -> Result<(), PlatformError> {
+pub(crate) fn install(
+    settings: Settings,
+    extra_hints: &[(&str, Cow<'_, str>)],
+) -> Result<(), PlatformError> {
     if !on_main_thread() {
         return Err("initialize slint-webos on the process main thread".into());
+    }
+    if i_slint_core::context::SlintContext::current().is_some() {
+        return Err(PlatformError::SetPlatformError(
+            platform::SetPlatformError::AlreadySet,
+        ));
     }
 
     if cfg!(all(target_os = "linux", target_arch = "arm")) {
         sdl2::hint::set("SDL_VIDEODRIVER", "wayland");
-        sdl2::hint::set("SDL_WEBOS_ACCESS_POLICY_KEYS_BACK", "true");
-        sdl2::hint::set("SDL_WEBOS_CLOUDGAME_ACTIVE", "false");
+        sdl2::hint::set(hints::WEBOS_ACCESS_POLICY_KEYS_BACK, "true");
+        sdl2::hint::set(hints::WEBOS_CLOUDGAME_ACTIVE, "false");
+    }
+    for (name, value) in extra_hints {
+        sdl2::hint::set(name, value);
     }
 
     let sdl = sdl2::init().map_err(|err| format!("initializing SDL: {err}"))?;

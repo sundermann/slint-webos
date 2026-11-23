@@ -40,6 +40,25 @@ For separate `.slint` files, add `slint-build = "1.19"` to your build dependenci
 same resolved Slint version for the compiler and runtime. Use `init_with_settings()` to set
 the initial window size, display mode, or UI scale.
 
+Use `init_with_settings_and_hints()` to pass SDL hints before initialization.
+Use typed `Hint` variants for webOS settings. `Hint::Custom` passes strings
+straight to SDL and works with any hint key.
+
+```rust
+use slint_webos::hints::{Hint, WindowType};
+
+slint_webos::init_with_settings_and_hints(
+    slint_webos::Settings::default(),
+    &[
+        Hint::WindowType(WindowType::Overlay),
+        Hint::Custom { name: "SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS", value: "0" },
+    ],
+)?;
+```
+
+Hints replace the backend's defaults at SDL's normal priority. Environment
+variables and existing override-priority hints take precedence.
+
 ## Build for webOS TV
 
 The Rust target is `armv7-unknown-linux-gnueabi`, including TVs with a 64-bit kernel and
